@@ -1,1 +1,2 @@
 # easy_server
+基于Python Socket库的简单的HTTP服务器模块，有类似Flask的规则加载系统
