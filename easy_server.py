@@ -1,10 +1,9 @@
-#easy_server 3.6
-#一个超级轻量而强大的Python语言HTTP服务器框架
-from os import system,listdir
+# easy_server 3.12
+# 一个超级轻量而强大的Python语言HTTP服务器框架
 import socket
-from threading import Thread,RLock
+from threading import Thread, RLock
 from urllib import parse
-from time import strftime,time,sleep
+from time import strftime, sleep
 import re
 from traceback import print_exc
 
@@ -120,102 +119,14 @@ class Tool_Rules: #自带的一些规则，可以投入使用，也可以供学�
                                         conn.sendall('此API需要密钥'.encode('utf-8'))
                                         return True
 
-
-
-class Server:
-        
-        '''
-服务器对象
-'''
-        
-        sendings = {'':'<h1>html服务器主页面（未定义）</h1>'}
-        max_conn = 128
-        
-        listen = 128
-        single_thread_mode = False
-        timeout = 1
-        full_loop_wait = 0.05
-        connect_rules = []
-        requests_rules = []
-        timeout_rules = []
-        accept = lambda self,event: None
-        time_out = lambda self,event: None
-        max_recv = 67108864
-        recv_temp_usage = 4096
-        error = '<h1>页面没了qwq</h1>'
-        running = False
-        server = None
-        conn_list = []
-        lock = None
-        log = 3
-
-        def printlog(self,str = 'None',type = 'i'):
-                time = strftime('%m-%d %H:%M:%S')
-                match type.lower():
-                        case 's':
-                                print('\033[32m{}\033[0m [\033[32mSECCESS\033[0m] | {}'.format(time,str))
-                        case 'i':
-                                print('\033[32m{}\033[0m [\033[38mINFO\033[0m] | {}'.format(time,str))
-                        case 'w':
-                                print('\033[32m{}\033[0m [\033[33mWARING\033[0m] | {}'.format(time,str))
-                        case 'e':
-                                print('\033[32m{}\033[0m [\033[31mERROR\033[0m] | {}'.format(time,str))
-                        case _:
-                                print('\033[32m{}\033[0m [\033[38m{}\033[0m] | {}'.format(time,type,str))
-                        
-        def __init__(self):
-                pass
-        
-        class Event:
-                def __init__(self):
-                        pass
-                        
-        def http(self,conn,addr):
-                self.lock.acquire()
-                self.conn_list.append((conn,addr))
-                self.lock.release()
-                try:
-                        if self.log >= 3:
-                                self.printlog('接受连接，对方IP: '+str(addr))
-
-                        last = None
-                        for rule in self.connect_rules:
-                                
-                                try:
-                                        event = self.Event()
-                                        event.conn = conn
-                                        event.addr = addr
-                                        event.last = last
-                                        last = rule(event)
-                                        
-                                except Exception as err:
-                                        if self.log >= 1:
-                                                self.printlog('连接处理规则: '+str(rule)+' 遇到错误: '+str(err),'w')
-                                                print_exc()
-                                
-                        data=b''
-                        while True:
-                                tmp=conn.recv(self.recv_temp_usage)
-                                if not tmp:
-                                        break
-                                data+=tmp
-                                if data.endswith(b'\r\n\r\n') or len(data) >= self.max_recv:
-                                        break
-                        str_data = data.decode('utf-8')
-                        try:
-                                http_dict = str_data.split('\r\n')
-                                index_count = 1
-                                for i in range(0,len(http_dict)):
-                                        if not ': ' in http_dict[i]:
-                                                http_dict[i] = 'INFO{}: '.format(index_count)+http_dict[i]
-                                                index_count += 1
-                                temp = {}
-                                for i in http_dict[:-2]:
-                                        i = i.split(': ')
-                                        temp[i[0]] = i[1]
-                                http_dict = temp
-                        except:
-                                http_dict = {}
+class Fittings:
+        class Encoders:
+                def utf_8_encoder(str):
+                        return str.encode('utf-8')
+                def utf_8_decoder(bytes):
+                        return bytes.decode('utf-8')
+        class Dict_spliters:
+                def dict_spliter(str_data):
                         try:
                                 get_ = re.match(r'[^/]*/+([^ ]*)\s+',str_data).group(1).split('?')
                                 txt = ''
@@ -234,87 +145,236 @@ class Server:
                                 get = (parse.unquote(get_[0]),a)
                         except:
                                 get = ('',{})
-                        if self.log >= 3:
-                                self.printlog('{} 的请求: {}'.format(addr,get))
+                        return get
+                def add_space_convert(str_data):
+                        try:
+                                get_ = re.match(r'[^/]*/+([^ ]*)\s+',str_data).group(1).split('?')
+                                txt = ''
+                                for i in get_[1:]:
+                                        txt += i + '?'
+                        except:
+                                txt = ''
+                        a = {}
+                        try:
+                                for i in txt[:-1].split('&'):
+                                        i = i.split('=')
+                                        a[parse.unquote(i[0])] = parse.unquote(i[1].replace('+',' '))
+                        except:
+                                pass
+                        try:
+                                get = (parse.unquote(get_[0]),a)
+                        except:
+                                get = ('',{})
+                        return get
+
+class Server:
+        
+        '''
+服务器对象
+'''
+        
+        sendings = {'':'<h1>html服务器主页面（未定义）</h1>'}
+        max_conn = 128
+        
+        listen = 128
+        single_thread_mode = False
+        timeout = 1
+        full_loop_wait = 0.05
+        connect_rules = []
+        requests_rules = []
+        timeout_rules = []
+        encoder = None
+        decoder = None
+        dict_spliter = None
+        max_recv = 67108864
+        recv_buffer_size = 4096
+        none = None
+        error = None
+        default_error_code = 'HTTP/1.1 500 Internal Server Error\r\nContent-Type:text/html; charset=utf-8\r\n\r\n'
+        default_html_code = 'HTTP/1.1 404 Not Found\r\nContent-Type:text/html; charset=utf-8\r\n\r\n'
+        running = False
+        server = None
+        host_port = None
+        conn_list = []
+        lock = None
+        log = 3
+
+        def printlog(self,str = 'None',type = 'i'):
+                time = strftime('%m-%d %H:%M:%S')
+                tp = type.lower()
+                if tp == 's':
+                        print('\033[32m{}\033[0m [\033[32mSECCESS\033[0m] | {}'.format(time,str))
+                elif tp == 'i':
+                        print('\033[32m{}\033[0m [\033[38mINFO\033[0m] | {}'.format(time,str))
+                elif tp == 'w':
+                        print('\033[32m{}\033[0m [\033[33mWARING\033[0m] | {}'.format(time,str))
+                elif tp == 'e':
+                        print('\033[32m{}\033[0m [\033[31mERROR\033[0m] | {}'.format(time,str))
+                else:
+                        print('\033[32m{}\033[0m [\033[38m{}\033[0m] | {}'.format(time,type,str))
                         
-                        byte = None
-                        html = '''<h1>没有此页面</h1>'''
-                        c = b'HTTP/1.1 404 Not Found\r\nContent-Type:text/html; charset=utf-8\r\n\r\n'
+        def __init__(self):
+                self.encoder = Fittings.Encoders.utf_8_encoder
+                self.decoder = Fittings.Encoders.utf_8_decoder
+                self.dict_spliter = Fittings.Dict_spliters.dict_spliter
+                self.none = lambda server,event: '''<h1>页面/文件没了qwq</h1><h2>找不到 {} qwq</h2>'''.format(str(event.get))
+                self.error = lambda server,event: '<h1>页面没了qwq</h1>'
+        
+        class Event:
+                def __init__(self):
+                        pass
                         
-                        last = None
+        def http(self,conn,addr):
+                self.lock.acquire()
+                self.conn_list.append((conn,addr))
+                self.lock.release()
+                if self.log >= 3:
+                        self.printlog('接受连接，对方IP: '+str(addr))
+
+                lasts = []
+                for rule in self.connect_rules:
                         
                         try:
-                                if get[0] in self.sendings:
-                                        html = str(self.sendings[get[0]])
-                                        c = b'HTTP/1.1 200 OK\r\nContent-Type:text/html; charset=utf-8\r\n\r\n'
-                                        
-                                last = None
-                                for rule in self.requests_rules:
+                                event = self.Event()
+                                event.conn = conn
+                                event.addr = addr
+                                event.lasts = lasts
+                                lasts.append(rule(event))
+                                
+                        except Exception as err:
+                                if self.log >= 1:
+                                        self.printlog('连接处理规则: '+str(rule)+' 遇到错误: '+str(err),'w')
+                                        print_exc()
+                        
+                ori_data=b''
+                while True:
+                        temp = conn.recv(self.recv_buffer_size)
+                        if not temp:
+                                break
+                        ori_data += temp
+                        if (self.encoder('\r\n\r\n') in ori_data) or (len(ori_data) >= self.max_recv):
+                                break
+                found = False
+                for i in range(len(ori_data)):
+                        if ori_data[i:i+4] == b'\r\n\r\n':
+                                data = ori_data[:i]
+                                excess_received_data = ori_data[i:]
+                                found = True
+                                break
+                if not found:
+                        data = ori_data
+                        excess_received_data = b''
+                str_data = self.decoder(data)
+                try:
+                        http_dict = str_data.split('\r\n')
+                        index_count = 1
+                        for i in range(0,len(http_dict)):
+                                if not ': ' in http_dict[i]:
+                                        http_dict[i] = 'INFO{}: '.format(index_count)+http_dict[i]
+                                        index_count += 1
+                        temp = {}
+                        for i in http_dict[:-2]:
+                                i = i.split(': ')
+                                temp[i[0]] = i[1]
+                        http_dict = temp
+                except:
+                        http_dict = {}
 
+                get = self.dict_spliter(str_data)
+                
+                if self.log >= 3:
+                        self.printlog('{} 的请求: {}'.format(addr,get))
+                
+                
+                c = None
+                byte = None
+                lasts = []
+                event = self.Event()
+                event.get = get
+                event.conn = conn
+                event.addr = addr
+                event.http_dict = http_dict
+                event.lasts = lasts
+                event.data = data
+                event.excess_received_data = excess_received_data
+                event.str_data = str_data
+                try:
+                        for rule in self.requests_rules:
+                                try:
+                                        ret = rule(event)
+                                        lasts.append(ret)
                                         try:
-
-                                                event = self.Event()
-                                                event.get = get
-                                                event.conn = conn
-                                                event.addr = addr
-                                                event.http_dict = http_dict
-                                                event.last = last
-                                                event.data = data
-                                                event.str_data = str_data
-                                                
-                                                last = rule(event)
-
-                                                try:
-                                                        if last != None:
-                                                                if type(last) == tuple:
-                                                                        byte = last[0]
-                                                                        c = last[1]
-                                                                else:
-                                                                        byte = last
-                                                                        c = b'HTTP/1.1 200 OK\r\nContent-Type:text/html; charset=utf-8\r\n\r\n'
-                                                except Exception as err:
-                                                        if self.log >= 1:
-                                                                self.printlog('在处理请求处理规则： '+str(rule)+' 的返回值时遇到错误：'+err,'w')
-                                                                print_exc()
+                                                if ret != None:
+                                                        if type(ret) == tuple:
+                                                                byte = ret[0]
+                                                                c = ret[1]
+                                                        else:
+                                                                byte = ret
+                                                                c = self.encoder('HTTP/1.1 404 Not Found\r\nContent-Type:text/html; charset=utf-8\r\n\r\n')
                                         except Exception as err:
                                                 if self.log >= 1:
-                                                        self.printlog('请求处理规则: '+str(rule)+' 遇到错误: '+str(err),'w')
+                                                        self.printlog('在处理请求处理规则： '+str(rule)+' 的返回值时遇到错误：'+err,'w')
                                                         print_exc()
-
-                                try:
-                                        if not type(c) == bytes:
-                                                c = c.encode('utf-8')
-                                        conn.sendall(c)
-
-                                
-                                        if byte != None:
-                                                if not type(byte) == bytes:
-                                                        byte = byte.encode('utf-8')
-                                                conn.sendall(byte)
-                                        else:
-                                                conn.sendall(html.encode('utf-8'))
-                                        conn.close()
-                                except:
+                                        event = self.Event()
+                                        event.get = get
+                                        event.conn = conn
+                                        event.addr = addr
+                                        event.http_dict = http_dict
+                                        event.lasts = lasts
+                                        event.data = data
+                                        event.excess_received_data = excess_received_data
+                                        event.str_data = str_data
+                                        
+                                except Exception as err:
                                         if self.log >= 1:
-                                                self.printlog('在发送数据时遇到错误：'+err,'w')
+                                                self.printlog('请求处理规则: '+str(rule)+' 遇到错误: '+str(err),'w')
                                                 print_exc()
-
-                        except:
-                                html ='''<h1>页面/文件没了qwq</h1><h2>找不到 {} qwq</h2>'''.format(str(get))
                                 
+                                if byte == None:
+                                        ret = self.none(self,event)
+                                        if type(ret) == tuple:
+                                                byte = ret[0]
+                                                c = ret[1]
+                                        else:
+                                                byte = ret
+                                if c == None:
+                                        c = self.default_html_code
+                        try:
+                                if not type(c) == bytes:
+                                        c = self.encoder(c)
+                                conn.sendall(c)
+                                if not type(byte) == bytes:
+                                        byte = self.encoder(byte)
+                                conn.sendall(byte)
+                                conn.close()
+                        except Exception as err:
+                                if self.log >= 1:
+                                        self.printlog('在发送数据时遇到错误： '+str(err),'w')
+                                        print_exc()
 
-
-                                
-                                                
                 except Exception as err:
                         if self.log >= 2:
                                 self.printlog('遇到错误: '+str(err),'w')
                                 print_exc()
                         try:
-                                conn.sendall(b'HTTP/1.1 500 Internal Server Error\r\nContent-Type:text/html; charset=utf-8\r\n\r\n')
-                                conn.sendall(self.error.encode('utf-8'))
+                                ret = self.error(self,event)
+                                if type(ret) == tuple:
+                                        text = ret[0]
+                                        head = ret[1]
+                                else:
+                                        text = ret
+                                        head = self.default_error_code
+                                if type(text) != byte:
+                                        text = self.encoder(text)
+                                if type(head) != byte:
+                                        head = self.encoder(head)
+                                conn.sendall(text)
+                                conn.sendall(head)
                                 conn.close()
-                        except:
+                        except Exception as err2:
+                                if self.log >= 2:
+                                        self.printlog('在处理错误 '+str(err)+' 时遇到错误: '+str(err2),'w')
+                                        print_exc()
                                 try:
                                         conn.close()
                                 except:
@@ -332,7 +392,7 @@ class Server:
                         self.printlog('已断开与 {} 的连接'.format(addr))
 
         
-        def run(self,host_port='127.0.0.1:80'):
+        def run(self,host_port='127.0.0.1'):
                 '''
 运行服务器
 '''
@@ -343,10 +403,15 @@ class Server:
                         self.lock = RLock()
                         try:
                                 if type(host_port) == str:
-                                        hostport = (host_port.split(':')[0],int(host_port.split(':')[1]))
+                                        split = host_port.split(':')
                                 else:
-                                        hostport = host_port
-                                self.server.bind(hostport)
+                                        split = host_port
+                                if len(split) >= 2:
+                                        host__port = (split[0],int(split[1]))
+                                else:
+                                        host__port = (split[0],80)
+                                self.server.bind(host__port)
+                                self.host_port = host__port
                                 self.server.listen(self.listen)
                                 if self.timeout != None:
                                         self.server.setblocking(False)
@@ -356,11 +421,9 @@ class Server:
                                 self.running = True
                                 if self.log >= 1:
                                         self.printlog('启动服务器成功','s')
-                                        self.printlog('开始在 {}:{} 上运行服务器'.format(hostport[0],hostport[1]),'s')
+                                        self.printlog('开始在 {}:{} 上运行服务器'.format(host__port[0],host__port[1]),'s')
                         except Exception as err:
                                 raise err
-                        
-                        
                         while self.running:
                                 try:
                                         if len(self.conn_list) < self.max_conn:
@@ -376,22 +439,20 @@ class Server:
                                                 self.printlog('遇到错误: '+str(err),'w')
                                                 print_exc()
                                         if str(err) == 'timed out':
-                                                last = None
+                                                lasts = []
                                                 for rule in self.timeout_rules:
                                                         
                                                         try:
 
                                                                 event = self.Event()
-                                                                event.last = last
+                                                                event.lasts = lasts
                                                                 
-                                                                last = rule(event)
+                                                                lasts.append(rule(event))
                                                                 
                                                         except Exception as err:
                                                                 if self.log >= 1:
                                                                         self.printlog('超时处理规则: '+str(rule)+' 遇到错误: '+str(err),'w')
                                                                         print_exc()
-
-                                                                        
                         self.lock.acquire()
                         for i in self.conn_list:
                                 if self.log >=3:
@@ -400,7 +461,7 @@ class Server:
                         self.conn_list = []
                         self.server.close()
                         self.lock.release()
-                        if log >= 1:
+                        if self.log >= 1:
                                 self.printlog('已停止服务器','s')
         def stop(self):
                 '''
